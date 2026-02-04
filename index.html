@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css' rel='stylesheet' />
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1:wght@400;500;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* [기본 설정] 주신 CSS 그대로 적용 */
+    :root { 
+        --google-blue: #1a73e8; --google-blue-hover: #1765cc; --google-red: #ea4335; --google-green: #1e8e3e; 
+        --google-grey-border: #dadce0; --google-text-main: #202124; --google-text-light: #5f6368; 
+        --google-bg-light: #f1f3f4; --google-bg-white: #ffffff; 
+        --shadow-card: 0 1px 2px 0 rgba(60,64,67,0.30), 0 1px 3px 1px rgba(60,64,67,0.15); 
+        --font-family: 'M PLUS 1', sans-serif; 
+    }
+    
+    body { margin: 0; padding: 0; font-family: var(--font-family); background-color: var(--google-bg-white) !important; color: var(--google-text-main); height: 100vh; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; }
+    
+    /* 헤더 스타일 */
+    .header { height: 70px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 1px solid #e8eaed; flex-shrink: 0; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-icon { width: 28px; height: 28px; fill: #202124; display: block; } 
+    .header h1 { font-size: 22px; font-weight: 800; color: #202124; margin: 0; padding: 0; line-height: 1; letter-spacing: -0.5px; display: flex; align-items: center; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .today-badge { color: #5f6368; font-size: 16px; font-weight: 700; }
+    .clock-group { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; border-left: 2px solid #dadce0; padding-left: 20px; gap: 2px; }
+    .digital-clock { font-family: var(--font-family); font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 800; color: #202124; line-height: 1; }
+    #lastSyncTime { font-size: 11px; color: #70757a; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+    .sync-dot { width: 7px; height: 7px; background-color: var(--google-green); border-radius: 50%; }
+
+    /* 그리드 레이아웃 */
+    .grid-container { display: grid; grid-template-columns: 60px repeat(6, 1fr); gap: 0; width: 100%; min-width: 1000px; flex-grow: 1; padding: 0; margin: 0; height: calc(100vh - 60px); box-sizing: border-box; background: var(--google-bg-white); overflow: hidden; }
+    .mobile-tab-bar { display: none; overflow-x: auto; white-space: nowrap; background: var(--google-bg-white); border-bottom: 1px solid var(--google-grey-border); padding: 0; flex-shrink: 0; }
+    .tab-btn { display: inline-block; padding: 12px 16px; margin: 0; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--google-text-light); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font-family); } .tab-btn.active { color: var(--google-blue); border-bottom-color: var(--google-blue); }
+    
+    @media (max-width: 768px) { 
+      .header { height: 56px; padding: 0 16px; } 
+      .header h1 { font-size: 16px; } 
+      .today-badge { display: none; } 
+      .digital-clock { font-size: 18px; border: none; padding-left: 0; }
+      .mobile-tab-bar { display: block; } 
+      .grid-container { display: grid; grid-template-columns: 50px 1fr !important; min-width: 100% !important; height: calc(100vh - 96px); } 
+      .card { display: none !important; } .card.active { display: flex !important; } .time-sidebar { display: flex !important; } 
+    }
+    
+    /* 사이드바 & 카드 */
+    .time-sidebar { background: var(--google-bg-white) !important; border-right: 1px solid var(--google-grey-border); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .time-header-spacer { height: 50px; border-bottom: 1px solid var(--google-grey-border); background: var(--google-bg-white) !important; flex-shrink: 0; } .time-footer-spacer { height: 52px; border-top: 1px solid transparent; flex-shrink: 0; } .time-body { flex-grow: 1; overflow: hidden; height: 100%; }
+    #time-axis-cal .fc-scrollgrid { border: none !important; } #time-axis-cal td, #time-axis-cal th { border-right: none !important; }
+    
+    .card { background: var(--google-bg-white); border-radius: 0; display: flex; flex-direction: column; height: 100%; border-right: 1px solid var(--google-grey-border); position: relative; overflow: hidden; } .card:last-child { border-right: none; }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background-color: var(--card-color, #ccc); z-index: 1; opacity: 1; }
+    
+    .card-header { display: flex; flex-direction: column; justify-content: center; padding: 0 12px; border-bottom: 1px solid var(--google-grey-border); background-color: color-mix(in srgb, var(--card-color), white 90%); height: 50px; flex-shrink: 0; gap: 0; }
+    .header-row-top { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; }
+    .card-name { font-weight: 800; font-size: 15px; color: var(--google-text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-btn { font-size: 11px; padding: 4px 8px; background-color: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; color: var(--google-text-main); cursor: pointer; transition: 0.2s; font-weight: 700; font-family: var(--font-family); } .history-btn:hover { background-color: #fff; }
+    
+    .calendar-area { flex-grow: 1; height: auto; min-height: 0; padding: 0; overflow: hidden; cursor: pointer; background: var(--google-bg-white); position: relative; }
+    .card-footer { height: 52px; padding: 8px 12px; background: var(--google-bg-white); border-top: 1px solid var(--google-grey-border); flex-shrink: 0; box-sizing: border-box; }
+    
+    .btn { width: 100%; padding: 8px 16px; border: 1px solid transparent; border-radius: 4px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; font-family: var(--font-family); }
+    .btn-green { background-color: var(--google-blue); color: white; } .btn-green:hover { background-color: var(--google-blue-hover); }
+    .btn-orange { background-color: white; border: 1px solid var(--google-grey-border); color: var(--google-red); } .btn-orange:hover { background-color: #fce8e6; }
+    .btn-gray { background-color: var(--google-bg-light); color: var(--google-text-light); cursor: wait; }
+    
+    /* FullCalendar 커스텀 */
+    .fc-toolbar { display: none !important; }
+    
+    /* 이벤트 스타일 */
+    .fc-v-event { border: 1px solid white !important; border-radius: 4px; box-shadow: var(--shadow-card); margin: 0 2px !important; transition: transform 0.1s ease, box-shadow 0.1s ease, height 0.1s ease; overflow: hidden; }
+    .fc-v-event:hover { z-index: 1000 !important; height: auto !important; min-height: 60px !important; overflow: visible !important; }
+    .fc-v-event:hover .fc-event-main { white-space: normal !important; overflow: visible !important; }
+    .fc-v-event:not(.event-past):not(.fc-event-readonly):hover { box-shadow: 0 8px 16px rgba(0,0,0,0.3) !important; transform: scale(1.02); cursor: pointer; }
+    .fc-v-event.event-past:hover { box-shadow: var(--shadow-card) !important; transform: none !important; cursor: default; }
+    .fc-event-main { padding: 4px 6px; font-size: 20px; font-weight: 700; color: inherit; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-family); }
+    
+    .fc-timegrid-slot { border-bottom: 1px solid var(--google-grey-border) !important; }
+    .card .fc-timegrid-axis, .card .fc-timegrid-slot-label { display: none !important; } #time-axis-cal .fc-timegrid-slot-label { display: table-cell !important; }
+    #modalMiniCalendar .fc-event-main { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; width: 100% !important; height: 100% !important; padding: 0 !important; white-space: nowrap !important; font-size: 12px !important; font-weight: 700 !important; overflow: hidden !important; }
+    #modalMiniCalendar .fc-timegrid-slot { height: auto !important; border-bottom: 1px solid var(--google-grey-border) !important; }
+    #modalMiniCalendar .fc-timegrid-slot-label-frame { text-align: center !important; display: flex !important; align-items: center !important; justify-content: center !important; height: 100% !important; }
+    
+    /* 모달 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+    .modal { background: white; border-radius: 8px; box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14); display: flex; flex-direction: column; overflow: hidden; animation: modalFadeIn 0.2s ease-out; font-family: var(--font-family); } @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .modal-header { padding: 16px 24px; border-bottom: 1px solid var(--google-grey-border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; } .modal-title { font-size: 20px; font-weight: 700; color: var(--google-text-main); } .modal-close-x { cursor: pointer; font-size: 24px; color: var(--google-text-light); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: 0.2s; } .modal-close-x:hover { background: var(--google-bg-light); color: var(--google-text-main); }
+    
+    /* 예약 UI */
+    .modal-large-booking { width: 850px; max-width: 95%; height: auto; display: flex; flex-direction: column; }
+    .modal-split-layout { display: flex; flex: 1; overflow: hidden; height: 500px; min-height: 500px; }
+    .modal-left-panel { flex: 0 0 380px; padding: 24px; display: flex; flex-direction: column; gap: 16px; border-right: 1px solid var(--google-grey-border); overflow-y: auto; background: #fff; } 
+    .modal-right-panel { flex: 1; padding: 16px; background-color: #fafafa; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    .section-label { font-size: 19px; font-weight: 800; color: var(--google-text-main); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .reset-link { font-size: 16px; color: var(--google-blue); cursor: pointer; font-weight: 700; text-decoration: none; } .reset-link:hover { text-decoration: underline; }
+    .chip-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+    .time-chip { padding: 15px 6px; border: 1px solid #dadce0; border-radius: 20px; background: white; color: var(--google-text-main); font-size: 17px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .time-chip:hover:not(:disabled) { background-color: #f1f3f4; border-color: #dadce0; }
+    .time-chip.selected { background-color: #e8f0fe; color: var(--google-blue); border-color: var(--google-blue); font-weight: 800; box-shadow: 0 1px 2px rgba(26,115,232,0.2); }
+    .time-chip:disabled { background-color: #f8f9fa; color: #ccc; border-color: #f1f3f4; cursor: not-allowed; text-decoration: none; }
+    .user-input-group { display: flex; flex-direction: column; gap: 8px; margin-top: auto; } 
+    .user-input-group label { font-size: 19px; font-weight: 800; color: var(--google-text-main); } 
+    .user-input-group input { padding: 15px; border: 1px solid var(--google-grey-border); border-radius: 4px; font-size: 18px; outline: none; transition: 0.2s; font-family: var(--font-family); font-weight: 700; }
+    .user-input-group input:focus { border-color: var(--google-blue); box-shadow: 0 0 0 2px rgba(26,115,232,0.1); }
+    .modal-booking-footer { padding: 16px 24px; border-top: 1px solid var(--google-grey-border); background: #fff; display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0; }
+    #modalMiniCalendar { flex-grow: 1; background: white; border: 1px solid var(--google-grey-border); border-radius: 4px; overflow: hidden; height: 100%; } 
+    .modal-right-header { padding-bottom: 10px; font-size: 14px; color: var(--google-text-light); text-align: center; font-weight: 700; }
+    .btn-cancel { padding: 10px 24px; border: 1px solid var(--google-grey-border); background: white; border-radius: 4px; cursor: pointer; font-weight: 700; color: var(--google-text-main); font-size: 14px; transition: 0.2s; font-family: var(--font-family); } .btn-cancel:hover { background-color: var(--google-bg-light); }
+    .btn-submit { padding: 10px 24px; border: none; background: var(--google-blue); color: white; border-radius: 4px; cursor: pointer; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1); transition: 0.2s; min-width: 100px; font-family: var(--font-family); } .btn-submit:hover { background: var(--google-blue-hover); box-shadow: 0 2px 4px rgba(0,0,0,0.2); } .btn-submit:disabled { background: var(--google-grey-border); color: #888; cursor: not-allowed; box-shadow: none; }
+    
+    /* 이력 모달 */
+    .modal-large { width: 600px; max-width: 90%; height: 650px; max-height: 80vh; display: flex; flex-direction: column; }
+    .modal-large .modal-body { flex: 1 1 auto !important; height: auto !important; overflow: hidden !important; display: flex; flex-direction: column; }
+    .history-search-bar { padding: 12px 20px; background: #f8f9fa; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+    .history-search-bar input[type="date"] { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; color: var(--google-text-main); font-family: var(--font-family); }
+    .search-btn { background: var(--google-blue); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 700; font-family: var(--font-family); } .search-btn:hover { background: var(--google-blue-hover); }
+    .reset-btn { background: white; border: 1px solid var(--google-grey-border); color: var(--google-text-main); padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; font-family: var(--font-family); font-weight: 700; } .reset-btn:hover { background: var(--google-bg-light); }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 14px; } .history-table th { background: var(--google-bg-light); text-align: left; padding: 10px; border-bottom: 1px solid var(--google-grey-border); font-weight: 700; } .history-table td { padding: 10px; border-bottom: 1px solid var(--google-bg-light); }
+    
+    /* 알림 모달 */
+    .modal-small { width: 400px; max-width: 90%; } .alert-body-content { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 10px 0; } .alert-icon-wrapper { font-size: 48px; margin-bottom: 8px; } .alert-text { font-size: 16px; color: var(--google-text-main); line-height: 1.5; font-weight: 500; }
+    .modal-footer { padding: 16px 24px; border-top: none; display: flex; justify-content: flex-end; gap: 12px; background: #fff; }
+    .alert-btn { padding: 10px 20px; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 14px; min-width: 90px; border: none; transition: 0.2s; display: flex; align-items: center; justify-content: center; font-family: var(--font-family); }
+    .alert-btn-confirm { background: var(--google-blue); color: white; box-shadow: 0 1px 2px rgba(0,0,0,0.15); } .alert-btn-confirm:hover { background: var(--google-blue-hover); box-shadow: 0 2px 4px rgba(0,0,0,0.2); } .alert-btn-green { background: var(--google-green); color: white; } .alert-btn-green:hover { background: #137333; } .alert-btn-delete { background: white; border: 1px solid var(--google-grey-border); color: var(--google-red); } .alert-btn-delete:hover { background: #fce8e6; border-color: var(--google-red); } .alert-btn-cancel { background: transparent; color: var(--google-text-light); } .alert-btn-cancel:hover { background: var(--google-bg-light); color: var(--google-text-main); }
+    
+    /* 기타 유틸 */
+    .fc-event-readonly { pointer-events: none !important; opacity: 0.7; border: none !important; } .temp-event-disabled { pointer-events: none !important; opacity: 0.6; cursor: wait !important; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: #ffffff; animation: spin 0.8s linear infinite; margin-right: 8px; } @keyframes spin { to { transform: rotate(360deg); } }
+    #toast-container { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; } .toast { pointer-events: auto; min-width: 320px; background: #202124; color: white; padding: 14px 24px; border-radius: 4px; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); opacity: 0; transform: translateY(20px); transition: opacity 0.3s, transform 0.3s; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 500; font-family: var(--font-family); } .toast.show { opacity: 1; transform: translateY(0); } .toast-icon { font-size: 18px; margin-right: 4px; } .toast-success .toast-icon { color: #81c995; } .toast-error .toast-icon { color: #f28b82; }
+    .fc-day-today { background-color: #ffffff !important; } #modalMiniCalendar .fc-day-today { background-color: #ffffff !important; }
+    .fc-theme-standard .fc-scrollgrid { border: none !important; } .fc-theme-standard td, .fc-theme-standard th { border-left: none !important; }
+    #card-wrapper-0 { border-left: none !important; margin-left: 0 !important; padding-left: 0 !important; } .grid-container { column-gap: 0px !important; }
+  </style>
+</head>
+<body>
+
+ <div class="header">
+  <div class="header-left">
+    <svg class="header-icon" viewBox="0 0 24 24">
+      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7v-5z"/>
+    </svg>
+    <h1>台車・確認スペース 予約管理</h1>
+  </div>
+
+  <div class="header-right">
+    <div class="today-badge">
+      <span id="realTimeDate">----/--/--</span>
+    </div>
+    
+    <div class="clock-group">
+      <div id="realTimeTime" class="digital-clock">00:00:00</div>
+      <div id="lastSyncTime">
+        <span class="sync-dot"></span>
+        <span id="syncText">最終同期: --:--:--</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="mobile-tab-bar" id="mobileTabs"></div>
+  <div class="grid-container" id="app"></div>
+  <div id="toast-container"></div>
+
+  <div class="modal-overlay" id="bookingModal">
+    <div class="modal modal-large-booking">
+      <div class="modal-header">
+        <span class="modal-title" id="bookingTitle">予約入力</span>
+        <span class="modal-close-x" onclick="closeModal('bookingModal')">✕</span>
+      </div>
+      <div class="modal-split-layout">
+        <div class="modal-left-panel">
+            
+            <div id="step1-container">
+                <div class="section-label">
+                  <span>① 開始時間を選択</span>
+                </div>
+                <div id="startTimeContainer" class="chip-container">
+                    <div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">
+                        <span class="spinner" style="border-top-color:#999;"></span> 読み込み中...
+                    </div>
+                </div>
+            </div>
+
+            <div id="step2-container" style="display:none; opacity:0; transition: opacity 0.3s;">
+                <div class="section-label">
+                    <span>② 終了時間を選択</span>
+                    <a class="reset-link" onclick="resetTimeSelection()">↻ 選び直す</a>
+                </div>
+                <div id="endTimeContainer" class="chip-container">
+                    </div>
+            </div>
+
+            <div class="user-input-group">
+                <label>③ 担当者名 入力 *</label>
+                <input type="text" id="userName" placeholder="例：鈴木 一郎" autocomplete="off" onkeyup="checkFormValidity()">
+            </div>
+
+        </div>
+        <div class="modal-right-panel">
+            <div class="modal-right-header">右側で空き状況を確認 (青色が選択範囲)</div>
+            <div id="modalMiniCalendar"></div>
+        </div>
+      </div>
+      <div class="modal-booking-footer">
+          <button class="btn-cancel" onclick="closeModal('bookingModal')">キャンセル</button>
+          <button class="btn-submit" id="btnSubmitBooking" onclick="submitReservation()" disabled>予約確定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="alertModal">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <span id="alertTitle" class="modal-title">確認</span>
+        <span class="modal-close-x" onclick="closeModal('alertModal')">✕</span>
+      </div>
+      <div id="alertBody" class="modal-body"></div>
+      <div class="modal-footer">
+        <button id="alertBtnCancel" class="alert-btn alert-btn-cancel" onclick="closeModal('alertModal')">キャンセル</button>
+        <button id="alertBtnMain" class="alert-btn alert-btn-confirm">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <span class="modal-title" id="historyTitle">利用履歴</span>
+        <span class="modal-close-x" onclick="closeModal('historyModal')">✕</span>
+      </div>
+      <div class="history-search-bar">
+        <input type="date" id="historyStart" title="開始日">
+        <span>~</span>
+        <input type="date" id="historyEnd" title="終了日">
+        <button class="search-btn" onclick="applyHistoryFilter()">検索</button>
+        <button class="reset-btn" onclick="resetHistoryFilter()">リセット</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; height: 100%; padding: 0;">
+        <div style="flex-grow: 1; overflow-y: auto;">
+            <table class="history-table">
+            <thead><tr><th style="width:35%">日時</th><th style="width:35%">担当者</th><th style="width:30%">状態</th></tr></thead>
+            <tbody id="historyTableBody"></tbody>
+            </table>
+        </div>
+        <div style="padding: 16px; border-top: 1px solid var(--google-grey-border); display:flex; justify-content:center; align-items:center; gap:10px; flex-shrink:0;">
+            <button id="prevPageBtn" class="history-btn">◀</button>
+            <span id="pageInfo" style="font-size:12px;">1 / 1</span>
+            <button id="nextPageBtn" class="history-btn">▶</button>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="alert-btn alert-btn-cancel" onclick="closeModal('historyModal')">閉じる</button></div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const resources = [
+      { name: "台車 ①", id: "cart1", color: "#FFD1D1" }, 
+      { name: "台車 ②", id: "cart2", color: "#FFE4C1" }, 
+      { name: "台車 ③", id: "cart3", color: "#FFFFD1" }, 
+      { name: "確認スペース ①", id: "space1", color: "#D1FFD1" }, 
+      { name: "確認スペース ②", id: "space2", color: "#D1E9FF" }, 
+      { name: "確認スペース ③", id: "space3", color: "#E1D1FF" }  
+    ];
+    
+    // Global State
+    let state = { 
+        calendars: [], isRefreshing: false, bookingIndex: null, cachedEvents: [], pendingAction: null, modalCal: null, currentHistoryTarget: "",
+        selectedStartHour: null, selectedEndHour: null
+    };
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      initApp();
+      startRealTimeClock();
+      updateLastSyncTime();
+      setInterval(() => autoRefresh(false), 15000);
+    });
+  
+    // --- Initialization & UI Generation ---
+    function initApp() {
+      const app = document.getElementById('app');
+      
+      // 1. Sidebar
+      const sidebar = document.createElement('div');
+      sidebar.className = 'time-sidebar';
+      sidebar.innerHTML = '<div class="time-header-spacer"></div><div class="time-body" id="time-axis-cal"></div><div class="time-footer-spacer"></div>';
+      app.appendChild(sidebar);
+      new FullCalendar.Calendar(document.getElementById('time-axis-cal'), getCalendarConfig('sidebar')).render();
+  
+      // 2. Resource Cards
+      createMobileTabs();
+      resources.forEach((res, i) => {
+        const cardHtml = `
+          <div class="card ${i===0?'active':''}" id="card-wrapper-${i}" style="--card-color:${res.color}">
+            <div class="card-header">
+              <div class="header-row-top"><span class="card-name" title="${res.name}">${res.name}</span><button class="history-btn" onclick="openHistoryModal('${res.name}')">📋 履歴</button></div>
+            </div>
+            <div class="calendar-area" id="cal-${i}"></div>
+            <div class="card-footer"><button id="btn-${i}" class="btn btn-gray">確認中...</button></div>
+          </div>`;
+        app.insertAdjacentHTML('beforeend', cardHtml);
+        
+        const cal = new FullCalendar.Calendar(document.getElementById(`cal-${i}`), getCalendarConfig('main', { 
+          resource: res, index: i 
+        }));
+        cal.render();
+        state.calendars.push(cal);
+      });
+  
+      autoRefresh(true);
+      setTimeout(enableScrollSync, 500);
+    }
+  
+    // --- Calendar Configuration ---
+    function getCalendarConfig(type, context = {}) {
+      const baseConfig = {
+        initialView: 'timeGridDay', headerToolbar: false, height: '100%', locale: 'ja', allDaySlot: false,
+        dayHeaders: false, slotMinTime: '08:00:00', slotMaxTime: '20:00:00', expandRows: true, nowIndicator: false,
+        slotLabelFormat: { hour: 'numeric', minute: '2-digit', hour12: false }
+      };
+  
+      if (type === 'sidebar') {
+        return { ...baseConfig, slotLabelVisible: true };
+      }
+      
+      if (type === 'main') {
+        const { resource, index } = context;
+        return {
+          ...baseConfig, slotLabelVisible: false, nowIndicator: true,
+          events: (info, success) => fetchEvents(resource, info, success),
+          eventClick: (info) => handleEventClick(resource.id, info.event),
+          dateClick: () => openBookingModal(index),
+          eventDidMount: function(info) {
+            info.el.setAttribute('title', info.event.title);
+          }
+        };
+      }
+  
+      if (type === 'modal') {
+        return {
+            ...baseConfig, 
+            initialDate: context.dateStr, 
+            slotMaxTime: '21:00:00', 
+            slotDuration: '01:00:00',
+            selectable: true,      
+            unselectAuto: false,  
+            selectMirror: true, 
+            nowIndicator: true,
+            eventContent: (arg) => ({ html: `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;pointer-events:none;"><span>${arg.timeText}</span><span style="margin-left:6px;">${arg.event.title}</span></div>` }),
+            events: (info, success) => fetchModalEvents(context.resourceId, context.dateStr, success),
+        };
+      }
+    }
+  
+    // --- Data Fetching & Logic ---
+    // [수정됨] 구글 서버 -> 파이썬 서버 API 호출로 변경
+    function fetchEvents(resource, info, success) {
+        const url = `/api/events?calId=${resource.id}&start=${info.startStr}&end=${info.endStr}`;
+        fetch(url)
+            .then(res => res.json())
+            .then(events => {
+                const now = new Date();
+                success(events.map(e => {
+                    let title = e.title.replace(resource.name, '').replace(/\s*\/\s*/g, ' ').trim();
+                    const isPast = new Date(e.end) < now;
+                    if (isPast) {
+                        return { 
+                            ...e, 
+                            title: title.replace("[使用中]", "[終了]"), 
+                            backgroundColor: '#e0e0e0', 
+                            borderColor: '#e0e0e0', 
+                            textColor: '#999', 
+                            classNames: ['event-past'] 
+                        };
+                    }
+                    if (title.startsWith("[予約]")) return { ...e, title, backgroundColor: '#fef7e0', borderColor: '#fef7e0', textColor: '#b06000' };
+                    return { ...e, title, backgroundColor: resource.color, borderColor: resource.color, textColor: '#3c4043' };
+                }));
+            });
+    }
+  
+    function fetchModalEvents(calId, dateStr, success) {
+        // [수정됨] API 호출로 변경
+        const startStr = dateStr + "T00:00:00";
+        const endStr = dateStr + "T23:59:59";
+        const url = `/api/events?calId=${calId}&start=${startStr}&end=${endStr}`;
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(events => {
+                state.cachedEvents = events;
+                success(events.map(e => ({ start: e.start, end: e.end, title: '予約済', color: '#e8eaed', textColor: '#70757a', classNames: ['fc-event-readonly'] })));
+                renderStartTimeButtons(); 
+            });
+    }
+  
+    function autoRefresh(force = false) {
+      if (!force && (state.isRefreshing || document.querySelector('.modal-overlay[style*="flex"]'))) return;
+      state.isRefreshing = true;
+      updateLastSyncTime("更新中...");
+      
+      state.calendars.forEach(cal => {
+        cal.getEvents().filter(e => e.id.startsWith('temp_')).forEach(e => e.remove());
+        cal.refetchEvents();
+      });
+  
+      // [수정됨] 상태 확인 API 호출
+      fetch('/api/status_all', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ calIds: resources.map(r => r.id) })
+      })
+      .then(res => res.json())
+      .then(results => {
+          results.forEach((res, i) => updateButtonState(i, res.status));
+          updateLastSyncTime(); 
+          state.isRefreshing = false;
+      })
+      .catch(() => {
+          updateLastSyncTime("Error"); 
+          state.isRefreshing = false; 
+      });
+    }
+  
+    // --- [NEW] Booking Modal UI Logic ---
+    function openBookingModal(index) {
+      state.bookingIndex = index;
+      state.cachedEvents = [];
+      state.selectedStartHour = null;
+      state.selectedEndHour = null;
+  
+      const res = resources[index];
+      const modal = document.getElementById('bookingModal');
+      
+      modal.style.display = 'flex';
+      document.getElementById('bookingTitle').innerText = `予約: ${res.name}`;
+      document.getElementById('userName').value = "";
+      document.getElementById('btnSubmitBooking').disabled = true;
+      
+      document.getElementById('step2-container').style.display = 'none';
+      document.getElementById('step2-container').style.opacity = '0';
+      document.getElementById('startTimeContainer').innerHTML = `<div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;"><span class="spinner" style="border-top-color:#999;"></span> 読み込み中...</div>`;
+  
+      const el = document.getElementById('modalMiniCalendar');
+      if(state.modalCal) state.modalCal.destroy();
+      state.modalCal = new FullCalendar.Calendar(el, getCalendarConfig('modal', { resourceId: res.id, dateStr: toISOLocal(new Date()).slice(0, 10) }));
+      state.modalCal.render();
+      setTimeout(() => state.modalCal.updateSize(), 50);
+    }
+  
+    // 1. 시작 시간 버튼 렌더링
+    function renderStartTimeButtons() {
+        const container = document.getElementById('startTimeContainer');
+        container.innerHTML = "";
+        
+        const nowHour = new Date().getHours();
+        let visibleButtonsCount = 0; 
+        
+        for (let h = 8; h <= 20; h++) {
+            if (h < nowHour) continue;
+  
+            const checkTime = new Date(); 
+            checkTime.setHours(h, 0, 0, 0);
+  
+            const isConflict = state.cachedEvents.some(ev => {
+                const s = new Date(ev.start); 
+                const e = new Date(ev.end);
+                return checkTime >= s && checkTime < e;
+            });
+  
+            if (isConflict) continue;
+  
+            const timeStr = `${h.toString().padStart(2,'0')}:00`;
+            const btn = document.createElement('div');
+            btn.className = 'time-chip';
+            btn.innerText = timeStr;
+            btn.setAttribute('data-hour', h);
+            
+            btn.onclick = () => {
+                if (state.selectedStartHour === h) {
+                    resetTimeSelection();
+                } else {
+                    onStartTimeSelect(h, btn);
+                }
+            };
+            
+            container.appendChild(btn);
+            visibleButtonsCount++;
+        }
+  
+        if (visibleButtonsCount === 0) {
+            container.innerHTML = `
+                <div style="grid-column:1/-1; text-align:center; padding:30px; background:#f8f9fa; border-radius:8px; border:1px dashed #dadce0;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">📢</div>
+                    <div style="font-size: 14px; color: #70757a; font-weight: 500;">
+                        本日の予約可能な時間はすべて埋まっているか、<br>受付時間を終了いたしました。
+                    </div>
+                </div>`;
+        }
+    }
+  
+    // 2. 시작 시간 선택 시
+    function onStartTimeSelect(hour, btnElement) {
+        state.selectedStartHour = hour;
+        state.selectedEndHour = null;
+  
+        document.querySelectorAll('#startTimeContainer .time-chip').forEach(b => {
+            if (parseInt(b.getAttribute('data-hour')) !== hour) {
+                b.style.display = 'none';
+            } else {
+                b.classList.add('selected');
+                b.style.display = 'block';
+            }
+        });
+  
+        updateCalendarSelection(hour, hour + 1); 
+        renderEndTimeButtons(hour);
+        
+        const step2 = document.getElementById('step2-container');
+        step2.style.display = 'block';
+        setTimeout(() => step2.style.opacity = '1', 10);
+        
+        checkFormValidity();
+    }
+  
+    // 2. 종료 시간 버튼 렌더링
+    function renderEndTimeButtons(startHour) {
+        const container = document.getElementById('endTimeContainer');
+        container.innerHTML = "";
+  
+        let limitHour = 21; 
+        const todayStr = toISOLocal(new Date()).slice(0,10);
+        const startTime = new Date(`${todayStr}T${startHour.toString().padStart(2,'0')}:00:00`);
+  
+        state.cachedEvents.forEach(ev => {
+            const evStart = new Date(ev.start);
+            if (evStart > startTime) {
+                const h = evStart.getHours();
+                if (h < limitHour) limitHour = h;
+            }
+        });
+  
+        let count = 0;
+        for (let h = startHour + 1; h <= limitHour; h++) {
+            const timeStr = `${h.toString().padStart(2,'0')}:00`;
+            const btn = document.createElement('div');
+            btn.className = 'time-chip';
+            btn.innerText = timeStr;
+            btn.setAttribute('data-end-hour', h); 
+  
+            btn.onclick = () => {
+                if (state.selectedEndHour === h) {
+                    state.selectedEndHour = null;
+                    document.querySelectorAll('#endTimeContainer .time-chip').forEach(b => {
+                        b.style.display = 'block';
+                        b.classList.remove('selected');
+                    });
+                    updateCalendarSelection(state.selectedStartHour, state.selectedStartHour + 1);
+                } else {
+                    onEndTimeSelect(h, btn);
+                }
+                checkFormValidity();
+            };
+  
+            container.appendChild(btn);
+            count++;
+        }
+        
+        if (count === 0) {
+                container.innerHTML = `
+                <div style="grid-column:1/-1; font-size:12px; color:#ea4335; padding:10px; text-align:center;">
+                    ⚠️ 次の予約があるため、これ以上の時間は選択できません。
+                </div>`;
+        }
+    }
+  
+    // 3. 종료 시간 선택 시
+    function onEndTimeSelect(hour, btnElement) {
+        state.selectedEndHour = hour;
+        
+        document.querySelectorAll('#endTimeContainer .time-chip').forEach(b => {
+            if (parseInt(b.getAttribute('data-end-hour')) !== hour) {
+                b.style.display = 'none';
+            } else {
+                b.classList.add('selected');
+                b.style.display = 'block';
+            }
+        });
+        
+        updateCalendarSelection(state.selectedStartHour, hour); 
+        checkFormValidity();
+    }
+  
+    function updateCalendarSelection(startH, endH) {
+        if(!state.modalCal) return;
+        const today = toISOLocal(new Date()).slice(0, 10);
+        
+        state.modalCal.select(
+            `${today}T${startH.toString().padStart(2,'0')}:00:00`, 
+            `${today}T${endH.toString().padStart(2,'0')}:00:00`
+        );
+    }
+  
+    function resetTimeSelection() {
+        state.selectedStartHour = null;
+        state.selectedEndHour = null;
+        if(state.modalCal) state.modalCal.unselect();
+        
+        document.querySelectorAll('#startTimeContainer .time-chip').forEach(b => {
+            b.style.display = 'block';
+            b.classList.remove('selected');
+        });
+  
+        document.getElementById('step2-container').style.opacity = '0';
+        setTimeout(() => document.getElementById('step2-container').style.display = 'none', 300);
+        checkFormValidity();
+    }
+  
+    function checkFormValidity() {
+      const isValid = state.selectedStartHour !== null && 
+                      state.selectedEndHour !== null && 
+                      document.getElementById('userName').value.trim() !== "";
+      
+      document.getElementById('btnSubmitBooking').disabled = !isValid;
+    }
+  
+    // [수정됨] 예약 전송 로직
+    function submitReservation() {
+      setLoading('btnSubmitBooking', true);
+      const res = resources[state.bookingIndex];
+      const today = toISOLocal(new Date()).slice(0, 10);
+      const uName = document.getElementById('userName').value;
+      
+      const sStr = `${today}T${state.selectedStartHour.toString().padStart(2,'0')}:00`;
+      const eStr = `${today}T${state.selectedEndHour.toString().padStart(2,'0')}:00`;
+      
+      const payload = { calId: res.id, targetName: res.name, userName: uName, start: sStr, end: eStr };
+  
+      fetch('/api/book', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(r => {
+        closeModal('bookingModal'); 
+        showAlert(r.message, r.success); 
+        setLoading('btnSubmitBooking', false, "予約確定");
+        if (r.success) {
+          state.calendars[state.bookingIndex].addEvent({ id: 'temp_'+Date.now(), title: `[予約] ${uName}`, start: payload.start, end: payload.end, backgroundColor: '#fef7e0', borderColor: '#fef7e0', textColor: '#b06000', classNames: ['temp-event-disabled'] });
+          updateButtonState(state.bookingIndex, 'occupied');
+          triggerAggressiveRefresh();
+        }
+      });
+    }
+  
+    // --- Alert / Action Logic ---
+    function handleEventClick(calId, event) {
+      if (event.end < new Date()) return;
+      state.pendingAction = { calId, eventId: event.id };
+      
+      const isBooking = event.title.includes("[予約]");
+      const isFuture = new Date() < event.start;
+      
+      if (isBooking && isFuture) setupAlert('choice');
+      else if (isBooking) setupAlert('checkin');
+      else setupAlert('return');
+    }
+  
+    function setupAlert(type) {
+      const resourceName = resources.find(r => r.id === state.pendingAction.calId)?.name || "対象";
+    
+      const configs = {
+        choice: { 
+          title: "予約操作の選択", 
+          text: `選択された「${resourceName}」のご予約内容を確認いたしました。以下の操作を選択してください。<br><br>
+                 <b>・チェックイン:</b> 直ちに利用を開始し、ステータスを「使用中」に変更します。<br>
+                 <b>・予約取消:</b> この予約を完全に取り消します。他の方が利用できるようになります。`, 
+          btnMain: "チェックイン", 
+          btnSub: "予約取消", 
+          mainAct: 'checkin', 
+          subAct: 'cancel' 
+        },
+        checkin: { 
+          title: "利用開始の確認", 
+          text: `「${resourceName}」の利用を開始しますか？<br><br>
+                 利用を開始すると、全体の予約状況に「使用中」として表示され、<br>
+                 他の方が現在の利用状況を確認できるようになります。`, 
+          btnMain: "利用を開始する", 
+          btnSub: "閉じる", 
+          mainAct: 'checkin', 
+          subAct: null 
+        },
+        return: { 
+          title: "返却処理の確認", 
+          text: `「${resourceName}」の利用を終了し、返却（完了）処理を行いますか？<br><br>
+                 返却を確定すると、次の方がすぐにこの${resourceName.includes('台車') ? '台車' : 'スペース'}を利用できるようになります。<br>
+                 元の場所に戻したか、お忘れ物がないかを再度ご確認ください。`, 
+          btnMain: "返却を確定する", 
+          btnSub: "閉じる", 
+          mainAct: 'return', 
+          subAct: null 
+        }
+      };
+      
+      const c = configs[type];
+      const modal = document.getElementById('alertModal');
+      
+      document.getElementById('alertTitle').innerText = c.title;
+      document.getElementById('alertBody').innerHTML = `
+        <div style="padding: 24px 32px; text-align: left;">
+          <div style="font-size: 15px; color: var(--google-text-main); line-height: 1.8;">
+            ${c.text}
+          </div>
+        </div>`;
+      
+      const btnMain = document.getElementById('alertBtnMain');
+      const btnCancel = document.getElementById('alertBtnCancel');
+      
+      btnMain.innerText = c.btnMain;
+      btnMain.className = `alert-btn alert-btn-confirm ${type === 'choice' || type === 'checkin' ? 'alert-btn-green' : ''}`;
+      btnMain.style.padding = "12px 24px";
+      btnMain.onclick = () => executeAction(c.mainAct);
+      
+      btnCancel.innerText = c.btnSub;
+      btnCancel.style.display = 'inline-flex';
+      btnCancel.style.padding = "12px 24px";
+      btnCancel.className = type === 'choice' ? 'alert-btn alert-btn-delete' : 'alert-btn alert-btn-cancel';
+      btnCancel.onclick = type === 'choice' ? () => executeAction(c.subAct) : () => closeModal('alertModal');
+      
+      modal.style.display = 'flex';
+    }
+  
+    // [수정됨] 체크인/반납/취소 API 호출
+    function executeAction(actType) {
+      const btn = document.getElementById('alertBtnMain');
+      const originalTxt = btn.innerText;
+      setLoading('alertBtnMain', true);
+      
+      const { calId, eventId } = state.pendingAction;
+      const payload = { eventId: eventId, calId: calId };
+      let url = '';
+
+      if (actType === 'checkin') url = '/api/checkin';
+      else if (actType === 'return') url = '/api/return';
+      else url = '/api/cancel';
+
+      fetch(url, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(res => {
+        closeModal('alertModal'); showAlert(res.message, res.success); setLoading('alertBtnMain', false, originalTxt);
+        if (res.success) {
+          const idx = resources.findIndex(r => r.id === calId);
+          const ev = state.calendars[idx]?.getEventById(eventId);
+          if (ev) {
+            if (actType === 'checkin') { ev.setProp('title', ev.title.replace("[予約]", "[使用中]")); ev.setProp('backgroundColor', resources[idx].color); ev.setProp('borderColor', resources[idx].color); ev.setProp('textColor', '#3c4043'); updateButtonState(idx, 'occupied'); }
+            else if (actType === 'return') { ev.setProp('title', ev.title.replace(/\[(使用中|予約)\]/, "[返却済]")); ev.setProp('backgroundColor', '#e0e0e0'); ev.setProp('borderColor', '#e0e0e0'); ev.setProp('textColor', '#999'); ev.setEnd(new Date()); updateButtonState(idx, 'available'); }
+            else { ev.remove(); updateButtonState(idx, 'available'); }
+          }
+          triggerAggressiveRefresh();
+        }
+      });
+    }
+  
+    // --- Utilities & History Logic ---
+    function updateButtonState(i, status) {
+        const btn = document.getElementById(`btn-${i}`);
+        const nowHour = new Date().getHours();
+        
+        const events = state.calendars[i].getEvents();
+        
+        let hasAvailableSlot = false;
+        for (let h = Math.max(8, nowHour); h <= 20; h++) {
+            const checkTime = new Date(); checkTime.setHours(h, 0, 0, 0);
+            const isConflict = events.some(ev => {
+            return checkTime >= ev.start && checkTime < ev.end;
+            });
+            if (!isConflict) {
+            hasAvailableSlot = true;
+            break;
+            }
+        }
+  
+        if (!hasAvailableSlot) {
+            btn.className = 'btn btn-gray';
+            btn.innerText = '本日の予約終了';
+            btn.style.cursor = 'not-allowed';
+            btn.onclick = null;
+            btn.disabled = true;
+        } else if (status === 'occupied') {
+            btn.className = 'btn btn-orange';
+            btn.innerText = '⚠️ 使用中 (予約可)';
+            btn.style.cursor = 'pointer';
+            btn.onclick = () => openBookingModal(i);
+            btn.disabled = false;
+        } else {
+            btn.className = 'btn btn-green';
+            btn.innerText = '予約する';
+            btn.style.cursor = 'pointer';
+            btn.onclick = () => openBookingModal(i);
+            btn.disabled = false;
+        }
+    }
+    
+    function startRealTimeClock() {
+      setInterval(() => {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('ja-JP', { hour12: false }); 
+        const dateStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} (${['日','月','火','水','木','金','土'][now.getDay()]})`;
+        
+        document.getElementById('realTimeTime').innerText = timeStr;
+        document.getElementById('realTimeDate').innerText = dateStr;
+      }, 1000);
+    }
+    
+    // [수정됨] 이력 조회 API 호출
+    function openHistoryModal(name, page=0) {
+      state.currentHistoryTarget = name;
+      document.getElementById('historyModal').style.display = 'flex';
+      
+      const startDate = document.getElementById('historyStart').value;
+      const endDate = document.getElementById('historyEnd').value;
+  
+      document.getElementById('historyTitle').innerText = `${name} 利用履歴`;
+      document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;"><span class="spinner" style="border-top-color:#1a73e8;"></span> 読み込み中...</td></tr>';
+      
+      const url = `/api/history?targetName=${encodeURIComponent(name)}&page=${page}&startDate=${startDate}&endDate=${endDate}`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(res => {
+            if (res.data.length === 0) {
+               document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#888;">データがありません。</td></tr>';
+            } else {
+               document.getElementById('historyTableBody').innerHTML = res.data.map(r => `<tr><td>${r.date}<br>${r.time}</td><td>${r.user}</td><td>${r.status}</td></tr>`).join('');
+            }
+            document.getElementById('pageInfo').innerText = `${res.currentPage+1} / ${res.totalPages||1}`;
+            
+            document.getElementById('prevPageBtn').onclick = () => openHistoryModal(name, res.currentPage-1);
+            document.getElementById('prevPageBtn').disabled = (res.currentPage === 0);
+            
+            document.getElementById('nextPageBtn').onclick = () => openHistoryModal(name, res.currentPage+1);
+            document.getElementById('nextPageBtn').disabled = (res.currentPage + 1 >= res.totalPages);
+        });
+    }
+  
+    function applyHistoryFilter() { openHistoryModal(state.currentHistoryTarget, 0); }
+    function resetHistoryFilter() { document.getElementById('historyStart').value = ""; document.getElementById('historyEnd').value = ""; openHistoryModal(state.currentHistoryTarget, 0); }
+  
+    function createMobileTabs() {
+      const tabBox = document.getElementById('mobileTabs');
+      resources.forEach((r, i) => {
+        const btn = document.createElement('button'); btn.className = `tab-btn ${i===0?'active':''}`;
+        btn.innerText = r.name.replace("台車 ", "🛒").replace("確認スペース ", "📍");
+        btn.onclick = () => {
+          document.querySelectorAll('.tab-btn').forEach((b, idx) => b.classList.toggle('active', idx===i));
+          document.querySelectorAll('.card').forEach((c, idx) => c.classList.toggle('active', idx===i));
+          state.calendars[i]?.updateSize();
+        };
+        tabBox.appendChild(btn);
+      });
+    }
+  
+    function enableScrollSync() {
+      const scrollers = document.querySelectorAll('.fc-scroller'); let syncing = false;
+      scrollers.forEach(s => s.addEventListener('scroll', (e) => {
+        if(!syncing) { syncing = true; scrollers.forEach(o => { if(o!==e.target) o.scrollTop = e.target.scrollTop; }); setTimeout(()=>syncing=false,10); }
+      }));
+    }
+  
+    function triggerAggressiveRefresh() { updateLastSyncTime("サーバー同期待機..."); setTimeout(() => autoRefresh(true), 2500); }
+    function updateLastSyncTime(msg) { document.getElementById('lastSyncTime').innerText = msg ? `最終同期: ${msg}` : `最終同期: ${new Date().toLocaleTimeString('ja-JP')}`; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; if(id==='bookingModal' && state.modalCal) state.modalCal.destroy(); }
+    function toISOLocal(d) { return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString(); }
+    function setLoading(id, isLoading, txt) { const el = document.getElementById(id); if(isLoading) { el.innerHTML='<span class="spinner"></span> 処理中...'; el.disabled=true; } else { el.innerText=txt; el.disabled=false; } }
+    
+    function showAlert(msg, success) {
+      const t = document.createElement('div'); t.className = `toast ${success?'toast-success':'toast-error'}`;
+      t.innerHTML = `<span class="toast-icon">${success?'✓':'⚠️'}</span><span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>{t.classList.remove('show'); setTimeout(()=>t.remove(),300)}, 3000);
+    }
+  </script>
+</body>
+</html>
